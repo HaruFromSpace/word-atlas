@@ -105,6 +105,25 @@ export function buildSession(atlas: Atlas, p: Progress, s: Settings, opts?: { id
   return { id: `s${seed}`, started: seed, steps, index: 0, graded: {}, newIds, reviewIds };
 }
 
+/**
+ * A session is saved with its steps already chosen, so turning spelling off in settings left the
+ * spelling steps of an unfinished session in place. Swap the ones still ahead for another format.
+ */
+export function withoutSpelling(atlas: Atlas, p: Progress, s: Settings, sess: ActiveSession): ActiveSession {
+  const from = sess.pending ? sess.index + 1 : sess.index;
+  let changed = false;
+  const steps = sess.steps.map((step, i) => {
+    if (i < from || step.kind !== "spell") return step;
+    const ref = atlas.byId.get(step.id);
+    if (!ref) return step;
+    changed = true;
+    const salt = sess.started + i;
+    const kind = quizKind(ref, p, { ...s, spell: false }, salt);
+    return { ...step, kind, options: distractors(atlas, ref, kind, salt) };
+  });
+  return changed ? { ...sess, steps } : sess;
+}
+
 export function gradeFor(kind: QuizKind, correct: boolean, ms: number, hinted: boolean): Grade {
   if (!correct) return Rating.Again;
   if (hinted) return Rating.Hard;

@@ -7,7 +7,7 @@ import { burst } from "../lib/burst";
 import { cue } from "../lib/sound";
 import { go } from "../lib/router";
 import { gap, normalize } from "../lib/text";
-import { answer, advance, buildSession, gradeFor, sessionStats } from "../store/session";
+import { answer, advance, buildSession, gradeFor, sessionStats, withoutSpelling } from "../store/session";
 import { Rating } from "../store/srs";
 import { store, useStore, type ActiveSession, type QuizKind, type Step } from "../store/store";
 import { EntryView, Highlight } from "../ui/EntryView";
@@ -34,6 +34,15 @@ export function Learn() {
       store.progress((p) => ({ ...p, session: s }));
     }
   }, [atlas]);
+
+  // Spelling turned off after this session was planned: drop the spelling steps still ahead.
+  const spell = useStore((s) => s.settings.spell);
+  useEffect(() => {
+    const { progress, settings } = store.get();
+    if (spell || !progress.session || progress.session.finished) return;
+    const next = withoutSpelling(atlas, progress, settings, progress.session);
+    if (next !== progress.session) store.progress((p) => ({ ...p, session: next }));
+  }, [atlas, spell, session?.id]);
 
   const ids = useMemo(() => [...new Set(session?.steps.map((s) => s.id) ?? [])], [session?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
